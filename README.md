@@ -760,6 +760,34 @@ GET /api/plugins/meu-agent/assets/** → classpath:/static/**
 
 ---
 
+## Portas internas do host
+
+O backend do app fala com o IS por portas internas em `${IS_HOST_BASE_URL}/api/extensions/internal/**`,
+autenticadas pelo par `X-IS-Plugin-Id` (`IS_PLUGIN_ID`) + `X-IS-Plugin-Internal-Token`
+(`IS_PLUGIN_INTERNAL_TOKEN`). Elas só aceitam chamada de `127.0.0.1` sem cabeçalho de proxy:
+**nunca** são chamadas pelo front do app, e o token nunca chega ao navegador.
+
+| Porta | Para quê |
+|---|---|
+| `/api/extensions/internal/llm` | usar o LLM ativo do IS |
+| `/api/extensions/internal/whatsapp` | rotas e fluxos pendentes do WhatsApp |
+| `/api/extensions/internal/catalog` | catalogar as tabelas gold do app e ler o catálogo |
+| `/api/extensions/internal/plugins/{outro-app}/**` | chamar outro Agent App instalado |
+| `/api/extensions/internal/workflows` | iniciar, acompanhar e parar rodadas de workflows do IS, com parâmetros que chegam ao script Python (`infinitestack-back#1280`) |
+
+### Workflows do IS
+
+O app pode disparar um workflow, passar `params` que chegam ao `--context` do script Python daquela
+rodada, ler o log enquanto roda, saber quando terminou (`done` + `result`) e parar a rodada.
+
+O que o app pode controlar é liberado **por instância**, pelo operador, em
+`/opt/infinitestack/etc/<plugin_id>-workflows.json`. Sem o arquivo, nada é permitido.
+
+Guia completo, com cliente Java, espera pelo fim da rodada, erros e teste com curl:
+**[AGENT_APPS_WORKFLOWS_COMMUNICATION.md](AGENT_APPS_WORKFLOWS_COMMUNICATION.md)**.
+
+---
+
 ## Exemplo de novo endpoint
 
 ```java
@@ -833,4 +861,6 @@ Ou como botão com `target="_parent"`:
 - [ ] Assets JS/CSS em `classpath:/static/` (sem CDN externo se `local_assets_only: true`)
 - [ ] UI segue a identidade visual do IS — ver checklist de design em **[design.md](design.md)**
 - [ ] Header do `isp-index.html` contém link de volta a `/agents/apps`
+- [ ] Chamadas a `/api/extensions/internal/**` só no backend, com `IS_HOST_BASE_URL` e o token lido do ambiente
+- [ ] Se o app controla workflows: o `<plugin_id>-workflows.json` que ele precisa está documentado no README do app
 - [ ] Build limpo: `./scripts/build-all.sh` sem erros
