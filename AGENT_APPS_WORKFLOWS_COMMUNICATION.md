@@ -278,6 +278,53 @@ Recomendações:
   a próxima chamada), `more` (se já há mais bytes) e `running`. Repetir com `from=next` acompanha a
   rodada sem reler o que já veio. `exists: false` é normal no começo, antes da primeira linha.
 
+### Rodada que o app não iniciou (agendamento, tela Schedules, CLI)
+
+O app só tem o `triggerId` das rodadas que ele mesmo iniciou. Para mostrar se o workflow está
+rodando quando a rodada veio de um agendamento, da tela ou do `runworkflow`, **não falta rota na
+porta**: o caminho já existe e combina duas entregas do back.
+
+1. **O script grava o próprio `triggerId`** (`infinitestack-back#1276`). Todo script Python rodado
+   pelo IS recebe o id da rodada em `IS_TRIGGER_ID`. Numa rodada de workflow, é o `triggerId` da
+   rodada do workflow, o mesmo que a porta conhece. Logo no início, antes de qualquer etapa
+   demorada, o script grava esse id numa tabela de controle do app, com o projeto e a hora de
+   início:
+
+   ```python
+   import os
+   from pathlib import Path
+
+   run_id = os.environ.get("IS_TRIGGER_ID", "")
+   # .../projects/<projectId>/scripts/<pasta>/main.py
+   project_id = Path(__file__).resolve().parents[2].name
+   # INSERT INTO apps.<plugin_id>_run (run_id, project_id, started_at) VALUES (...)
+   ```
+
+   Gravar só quando o script pega a primeira tarefa não basta. Uma rodada que passa minutos ou
+   horas listando a fonte antes de baixar algo não deixaria rastro, e o app diria "parado" com ela
+   rodando.
+
+2. **O backend do app lê o run mais recente da tabela e pergunta à porta**
+   (`GET /projects/{projectId}/runs/{run_id}`). O `done` diz se está rodando, e o `result` diz como
+   terminou. É a mesma chamada da espera acima. O `projectId` da rota sai da própria linha gravada.
+
+O que a porta **não** mostra, e por quê:
+
+| Rodada | A porta mostra? | Motivo |
+|---|---|---|
+| Iniciada pelo app (`POST .../runs`) | sim | workflow liberado |
+| Agendamento ou tela Schedules do workflow liberado | sim | o registro guarda o slug do workflow |
+| `runworkflow` do workflow liberado | sim | idem |
+| Script rodado direto no Skills Lab (botão play, `skillslab -r`) | **não**: `403` ou `404` | não é rodada de workflow. O registro guarda o caminho do script no lugar do slug, e nenhuma liberação cobre isso |
+
+Por isso, o script que o app acompanha roda **sempre por um workflow** (agendado, pela tela ou
+pelo app), nunca direto pelo Skills Lab. Quando a porta não reconhece o run gravado, o app mostra
+"iniciado fora do workflow" em vez de "parado", porque ele não sabe o estado.
+
+Não crie rota de listagem nem copie o estado da rodada para uma tabela do app (heartbeat): o
+estado vivo está no registro da rodada do IS, que já fecha como `INTERRUPTED` quando o back
+reinicia ou alguém para a rodada.
+
 ### Parar
 
 ```java
@@ -343,6 +390,11 @@ Regras dos `params`:
   script (ver `HOW_SKILLS_LAB_WORKS.md` no infinitestack-infra).
 - **O `202` não diz que o script vai rodar agora.** Com limites de processo ligados
   (`proclimits`), a rodada pode esperar na fila: `result: QUEUED`.
+- **Rodada do Skills Lab não é rodada de workflow.** O botão play e o `skillslab -r` criam um
+  registro sem slug de workflow, e a porta não o mostra (seção 6, "Rodada que o app não iniciou").
+  Para o app acompanhar, rode pelo workflow.
+- **Saber o estado de uma rodada que o app não iniciou** é `IS_TRIGGER_ID` gravado pelo script +
+  `GET .../runs/{triggerId}`. A porta não precisa de rota de listagem.
 - **Duas rodadas do mesmo workflow podem rodar ao mesmo tempo.** O host não impede. Se o script não
   aguenta concorrência, o app controla (ex.: não iniciar outra enquanto houver uma `done: false`).
 
