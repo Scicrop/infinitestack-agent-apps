@@ -91,7 +91,8 @@ Fora do código-fonte, issues, PRs, documentação `.md` do repositório e conve
 
 ## UI
 
-Siga [design.md](design.md), com Thymeleaf: tema escuro com os tokens de `:root`, system font, header +
+Siga [design.md](design.md), com Thymeleaf: tema escuro por padrão com os tokens de `:root` (modo claro
+opcional, ver "Modo claro e escuro" no README), system font, header +
 sidebar 320px + conteúdo, `body` travado em `100vh` com scroll só nos painéis, botão primário verde
 (`--accent`), spinner CSS e bolinha de status para estados longos, texto em pt-BR. Para começar uma
 tela nova, copie a estrutura de `recomendador-manejo` (formulário → resultado) ou de `satellite-hub`

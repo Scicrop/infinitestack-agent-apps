@@ -12,7 +12,7 @@ Um Agent App é renderizado **dentro de um iframe** na seção *Agents → Apps*
 
 1. **É um painel, não um site.** Não há barra de navegação própria, breadcrumbs, rodapé institucional, logo de empresa nem links "voltar". O IS já fornece a moldura. O app preenche o retângulo do iframe e nada mais.
 2. **Uma tela, autossuficiente.** O fluxo principal acontece em `isp-index.html`. Evite navegação entre páginas; prefira painéis, abas e modais dentro da mesma tela.
-3. **Tema escuro por padrão.** O IS é uma aplicação dark. Um app claro destoa imediatamente e "quebra" a sensação de continuidade.
+3. **Tema escuro por padrão.** O IS é uma aplicação dark. Um app que abre claro destoa imediatamente e "quebra" a sensação de continuidade. O app pode oferecer um **modo claro opcional**, ligado por quem usa num botão do header; a receita está em "Modo claro e escuro" no [README.md](README.md).
 4. **Denso e técnico.** O público é operacional/analítico. Fontes pequenas (10–14px), muita informação por área, rótulos em caixa-alta discretos — não um marketing landing page.
 5. **Tudo embarcado.** Sem CDN, sem fonte externa, sem chamada de rede para terceiros. Todo CSS, JS e biblioteca vivem dentro do pacote (ver §7).
 
@@ -46,7 +46,8 @@ Regras de uso:
 - **Verde (`--accent`) é a cor da marca** e da ação principal (botão "Simular", "Buscar", "Treinar"). Use com moderação — um único ponto de verde por contexto guia o olho.
 - **Azul (`--accent2`)** é realce secundário: badges informativos, hover de itens, links.
 - Escalas semânticas (péssimo→excelente, baixo→alto) usam o gradiente `danger → #fb923c → warn → #86efac → accent`.
-- Fundos sobem em camadas: `--bg` (mais fundo) → `--surface` → `--surface2` (mais à frente). Nunca use branco puro como fundo de bloco.
+- Fundos sobem em camadas: `--bg` (mais fundo) → `--surface` → `--surface2` (mais à frente). No tema escuro, nunca use branco puro como fundo de bloco.
+- **Modo claro opcional:** os mesmos tokens ganham valores claros em `:root[data-theme="light"]`; só superfícies, texto, bordas e tons de fundo mudam, e as cores que significam algo (escalas, status, séries) ficam iguais. Ver "Modo claro e escuro" no [README.md](README.md).
 
 ---
 
@@ -188,7 +189,7 @@ Fundo `#0d0d0d`, texto `#e8e8e8`, chave em `--muted`. Só isso.
 Checklist de design (complementa o checklist técnico do README):
 
 - [ ] `:root` com os tokens de cor da §2 (copie do `recomendador-manejo`).
-- [ ] Tema **escuro**; nenhum fundo branco/claro de bloco.
+- [ ] Tema **escuro** por padrão; nenhum fundo branco/claro de bloco no modo escuro. Modo claro só como opção do botão no header, seguindo "Modo claro e escuro" do README.
 - [ ] `body` em `grid` travado em `100vh` com `overflow: hidden`; scroll só nos painéis internos.
 - [ ] **Header** com `--surface` + `border-bottom`, título 16px/600 e indicador de status à direita.
 - [ ] Layout **sidebar 320px + conteúdo `1fr`** (ajuste conforme o app, mas mantenha o idioma visual).

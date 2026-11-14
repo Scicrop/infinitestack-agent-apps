@@ -846,6 +846,126 @@ Ou como botão com `target="_parent"`:
 
 ---
 
+## Modo claro e escuro
+
+O tema **escuro é o padrão** (ver [design.md](design.md) §1). O app pode oferecer um **modo claro**
+como opção de quem usa, por um botão no header. A escolha fica no navegador de cada pessoa
+(`localStorage`); nada vai para o servidor.
+
+### 1. Cores só em variáveis
+
+Toda cor de superfície, texto, borda e tom de fundo é uma variável CSS. Os valores escuros ficam em
+`:root`; os claros, em `:root[data-theme="light"]`. Nenhuma regra do CSS repete um hexadecimal de
+superfície ou texto: se repetir, aquele ponto não muda de modo.
+
+```css
+:root {
+    color-scheme: dark;
+    --bg: #0d0d0d;
+    --surface: #161616;
+    --surface2: #1e1e1e;
+    --border: #2a2a2a;
+    --text: #e8e8e8;
+    --muted: #6b6b6b;
+}
+
+:root[data-theme="light"] {
+    color-scheme: light;
+    --bg: #f4f4f5;
+    --surface: #ffffff;
+    --surface2: #ececef;
+    --border: #e4e4e7;
+    --text: #18181b;
+    --muted: #6b6b74;
+}
+```
+
+- **Troque só o que é fundo.** Superfícies, texto, bordas, linhas de grade e os tons de fundo de
+  mensagens (erro, aviso, sucesso, informação) mudam. Cores que **significam** algo (escala de
+  valores, status, categorias, séries de gráfico) ficam iguais nos dois modos: o que muda é o
+  fundo em que elas assentam.
+- `color-scheme` faz o navegador desenhar barras de rolagem, `<select>` e campos de data no modo
+  certo.
+
+### 2. Sem piscar na abertura
+
+A escolha salva é aplicada no `<head>`, antes do primeiro desenho. Sem isso a página abre escura e
+pisca para clara. Use uma chave própria do app (`<plugin_id>-tema`):
+
+```html
+<head>
+    ...
+    <script>
+        try {
+            if (localStorage.getItem('meu-agent-tema') === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+            }
+        } catch (e) { /* no storage (private window, blocked): stays dark */ }
+    </script>
+</head>
+```
+
+O script não tem `[[` nem `]]`, que o Thymeleaf interpretaria.
+
+### 3. O botão
+
+Um botão de ícone no header, ao lado do link de volta ao IS, com a lua no modo escuro (vai para o
+claro) e o sol no modo claro (volta ao escuro). Os ícones são SVG inline, sem biblioteca externa.
+
+```html
+<button type="button" class="theme-btn" id="btn-tema" title="Modo claro" aria-pressed="false">
+    <svg viewBox="0 0 24 24" class="theme-moon"><path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/></svg>
+    <svg viewBox="0 0 24 24" class="theme-sun"><circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+</button>
+```
+
+```css
+.theme-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+.theme-btn .theme-sun { display: none; }
+:root[data-theme="light"] .theme-btn .theme-sun { display: block; }
+:root[data-theme="light"] .theme-btn .theme-moon { display: none; }
+```
+
+```javascript
+// Light or dark mode: the attribute on <html> swaps the CSS variables; the choice stays in the browser.
+(function () {
+    const KEY = 'meu-agent-tema';
+    const root = document.documentElement;
+    const light = () => root.getAttribute('data-theme') === 'light';
+    document.addEventListener('DOMContentLoaded', () => {
+        const button = document.getElementById('btn-tema');
+        const show = () => {
+            button.setAttribute('aria-pressed', light() ? 'true' : 'false');
+            button.title = light() ? 'Modo escuro' : 'Modo claro';
+        };
+        button.addEventListener('click', () => {
+            const toLight = !light();
+            if (toLight) root.setAttribute('data-theme', 'light'); else root.removeAttribute('data-theme');
+            try { localStorage.setItem(KEY, toLight ? 'light' : 'dark'); } catch (e) { /* no storage */ }
+            show();
+            window.dispatchEvent(new CustomEvent('app-theme', { detail: { light: toLight } }));
+        });
+        show();
+    });
+})();
+```
+
+### 4. O que não muda sozinho
+
+- **Gráficos em `<canvas>`** (Chart.js e afins) recebem cores em JavaScript, não do CSS. Leia a
+  variável na hora de desenhar (`getComputedStyle(document.documentElement).getPropertyValue('--muted')`)
+  e redesenhe ao receber o evento `app-theme`.
+- **SVG desenhado por JS:** o atributo `fill="..."` não aceita `var(--x)`. Para uma cor que depende
+  do modo, use `style="fill: var(--x)"`.
+- **Cor escrita em `element.style`** pelo JS: use `'var(--text)'`, não um hexadecimal.
+- **Mapas com imagem de satélite ou tiles** não mudam: a cena é a mesma nos dois modos. Mudam as
+  caixas flutuantes, legendas e contornos desenhados por cima.
+
+Teste as telas nos dois modos antes de empacotar, inclusive gráficos, mapas, modais e editores.
+
+---
+
 ## Checklist antes de empacotar
 
 - [ ] `plugin_id` em `plugin-manifest.json` é único e sem espaços
@@ -860,6 +980,7 @@ Ou como botão com `target="_parent"`:
 - [ ] `requires_host_authentication: true` e `requires_host_authorization: true`
 - [ ] Assets JS/CSS em `classpath:/static/` (sem CDN externo se `local_assets_only: true`)
 - [ ] UI segue a identidade visual do IS — ver checklist de design em **[design.md](design.md)**
+- [ ] Se o app oferece modo claro: cores só em variáveis, escolha aplicada no `<head>`, botão no header e telas testadas nos dois modos (ver **Modo claro e escuro**)
 - [ ] Header do `isp-index.html` contém link de volta a `/agents/apps`
 - [ ] Chamadas a `/api/extensions/internal/**` só no backend, com `IS_HOST_BASE_URL` e o token lido do ambiente
 - [ ] Se o app controla workflows: o `<plugin_id>-workflows.json` que ele precisa está documentado no README do app
