@@ -711,6 +711,28 @@ O IS valida `checksums.sha256` na instalação — qualquer alteração manual n
 
 ---
 
+## Agent App nativo (GraalVM)
+
+Além do `app/plugin.jar` executado com `java -jar`, um app pode ser empacotado como **executável
+nativo** compilado com GraalVM (`infinitestack-back#1369`). O `.ispz` traz `app/plugin` no lugar do
+jar, e o manifest declara:
+
+```json
+{ "runtime": "native", "native": { "os": "linux", "arch": "x86_64", "glibc_min": "2.34" } }
+```
+
+Sem `runtime`, ou com `"jvm"`, o app é JVM, como sempre. O IS nunca compila: o binário é gerado
+na máquina de quem desenvolve, dentro da imagem do GraalVM, para rodar na glibc 2.36 do contêiner do
+IS. No `meu-clima-agent-app`, o nativo usou 118 MB de RSS contra a média de 250 MB dos apps JVM da
+mesma instância, e subiu em 0,08 s contra 1,4 s.
+
+- App novo: **[HOW_TO_CREATE_GRAALVM_AGENT_APPS.md](HOW_TO_CREATE_GRAALVM_AGENT_APPS.md)**, com as
+  regras de código, o `pom.xml`, o script `scripts/build-native.sh`, o teste do binário e a instalação.
+- App existente: **[HOW_TO_PORT_TO_GRAALVM_AGENT_APPS.md](HOW_TO_PORT_TO_GRAALVM_AGENT_APPS.md)**, com
+  a avaliação das dependências, a instalação ao lado da versão JVM e o caminho de volta.
+
+---
+
 ## Instalação e gerenciamento via CLI do IS
 
 O IS expõe comandos no terminal CLI (seção **Leverage → Chatbot** ou terminal admin).
