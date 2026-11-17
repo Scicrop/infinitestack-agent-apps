@@ -711,6 +711,28 @@ O IS valida `checksums.sha256` na instalação — qualquer alteração manual n
 
 ---
 
+## Agent App nativo (GraalVM)
+
+Além do `app/plugin.jar` executado com `java -jar`, um app pode ser empacotado como **executável
+nativo** compilado com GraalVM (`infinitestack-back#1369`). O `.ispz` traz `app/plugin` no lugar do
+jar, e o manifest declara:
+
+```json
+{ "runtime": "native", "native": { "os": "linux", "arch": "x86_64", "glibc_min": "2.34" } }
+```
+
+Sem `runtime`, ou com `"jvm"`, o app é JVM, como sempre. O IS nunca compila: o binário é gerado
+na máquina de quem desenvolve, dentro da imagem do GraalVM, para rodar na glibc 2.36 do contêiner do
+IS. No `meu-clima-agent-app`, o nativo usou 118 MB de RSS contra a média de 250 MB dos apps JVM da
+mesma instância, e subiu em 0,08 s contra 1,4 s.
+
+- App novo: **[HOW_TO_CREATE_GRAALVM_AGENT_APPS.md](HOW_TO_CREATE_GRAALVM_AGENT_APPS.md)**, com as
+  regras de código, o `pom.xml`, o script `scripts/build-native.sh`, o teste do binário e a instalação.
+- App existente: **[HOW_TO_PORT_TO_GRAALVM_AGENT_APPS.md](HOW_TO_PORT_TO_GRAALVM_AGENT_APPS.md)**, com
+  a avaliação das dependências, a instalação ao lado da versão JVM e o caminho de volta.
+
+---
+
 ## Instalação e gerenciamento via CLI do IS
 
 O IS expõe comandos no terminal CLI (seção **Leverage → Chatbot** ou terminal admin).
@@ -788,6 +810,25 @@ Guia completo, com cliente Java, espera pelo fim da rodada, erros e teste com cu
 
 ---
 
+## Configuração do app
+
+Os parâmetros próprios do app e dos pacotes do Skills Lab ligados a ele ficam num documento JSON
+validado por JSON Schema, e não em `application.properties` ou `.env`. O pacote traz o schema e os
+padrões em `config/`, e a instância sobrescreve o que muda nela em
+`/opt/infinitestack/etc/data/<plugin_id>.config.json`. Os dados são apontados por referência
+(tabela, mirror, fonte do catálogo, URI de storage) e a credencial só pelo nome, nunca pelo valor.
+Quem edita a instância é um `ADMIN` ou `SCICROP`, pela tela de Configurações do próprio app (ver
+**Barra de ações do header**). A gravação usa revisão, e quem salva sobre uma versão que outra
+pessoa já mudou recebe `409` em vez de sobrescrever.
+
+O `application.properties` continua com o contrato com o host (`infinitestack.plugin.*`,
+datasource, `infinitestack.host.*`, LLM ativo).
+
+Especificação completa, com o schema do envelope, os tipos de referência, a mescla e a migração:
+**[AGENT_APPS_CONFIG.md](AGENT_APPS_CONFIG.md)**.
+
+---
+
 ## Exemplo de novo endpoint
 
 ```java
@@ -826,23 +867,131 @@ Commite o `package-layout/` completo (exceto `plugin.jar` e `checksums.sha256`, 
 
 ---
 
-## Link de volta ao IS
+## Barra de ações do header
 
-Todo Agent App **deve** exibir um botão ou link que leve o usuário de volta à seção **Agents → Apps** do IS. O app roda dentro de um `<iframe>`, portanto a navegação deve usar `window.parent`:
+Todo Agent App tem, no canto direito do `<header>` principal, o mesmo grupo de botões, na mesma
+ordem, visível em todas as telas:
+
+| # | Botão | Quem vê | O que faz |
+|---|---|---|---|
+| 1 | **Configurações** | só `ADMIN` e `SCICROP` | abre a tela de configurações do próprio app |
+| 2 | **Suporte** | todos | abre um chamado com print e console (`support-kit.js` do IS) |
+| 3 | **Modo claro/escuro** | todos, se o app oferece o modo claro | alterna o tema |
+| 4 | **Voltar ao IS** | todos | volta a **Agents → Apps** |
+
+- **Ícone com dica, sem texto.** Cada botão é um ícone SVG inline (sem biblioteca externa) com
+  `title`, que é a dica ao passar o mouse, e `aria-label` com o mesmo texto, para leitor de tela. O
+  tema troca a dica conforme o modo ("Modo claro" / "Modo escuro").
+- **Voltar ao IS é sempre o último**, no canto. Um botão que o app não tem (o tema, por exemplo)
+  some sem deixar buraco, e a ordem dos outros não muda.
+- **A bolinha de status** (design.md §4) fica logo à esquerda do grupo, separada por uma divisória
+  vertical de `1px` em `--border`.
+- **Nada além desses quatro** no grupo. Ação do app vai no corpo da tela, não no header.
+
+### Estrutura
 
 ```html
-<a href="#" onclick="window.parent.location.href='/agents/apps'; return false;">
-  ← Voltar ao IS
-</a>
+<header>
+    <h1>Nome do App</h1>
+    <span class="spacer"></span>
+    <div id="model-status"><span class="dot ready"></span> Pronto</div>
+    <nav class="header-actions" aria-label="Ações">
+        <button type="button" class="icon-btn" id="btn-config" th:if="${isAdmin}"
+                title="Configurações" aria-label="Configurações">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/>
+                <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="btn-support" data-support-exclude
+                title="Suporte" aria-label="Suporte">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/>
+                <path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>
+        </button>
+        <button type="button" class="icon-btn theme-btn" id="btn-tema"
+                title="Modo claro" aria-label="Modo claro" aria-pressed="false">
+            <!-- lua e sol: ver "Modo claro e escuro" -->
+        </button>
+        <a class="icon-btn" href="/agents/apps" target="_parent"
+           title="Voltar ao IS" aria-label="Voltar ao IS">
+            <svg viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        </a>
+    </nav>
+</header>
 ```
 
-Ou como botão com `target="_parent"`:
+```css
+header { display: flex; align-items: center; gap: 12px; }
+header .spacer { flex: 1; }
+.header-actions { display: flex; align-items: center; gap: 4px; padding-left: 12px;
+                  border-left: 1px solid var(--border); }
+.icon-btn { display: inline-flex; align-items: center; justify-content: center;
+            width: 30px; height: 30px; padding: 0; border: 1px solid transparent; border-radius: 6px;
+            background: transparent; color: var(--muted); cursor: pointer; text-decoration: none; }
+.icon-btn:hover { color: var(--text); background: var(--surface2); border-color: var(--border); }
+.icon-btn:focus-visible { outline: none; border-color: var(--accent); }
+.icon-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2;
+                stroke-linecap: round; stroke-linejoin: round; }
+```
+
+A dica é o `title` nativo do navegador: não precisa de biblioteca, funciona no iframe e segue o
+tema do sistema.
+
+### Configurações: só admin, decidido no servidor
+
+- O proxy do IS põe `X-IS-Role` em cada requisição. Admin é **`ADMIN` ou `SCICROP`**.
+- **O botão nem é desenhado para outros papéis.** O controller passa `isAdmin` ao template e o
+  `th:if="${isAdmin}"` tira o botão do HTML. Esconder com CSS ou JS não serve: o HTML chegaria ao
+  navegador do mesmo jeito.
+- **Toda rota de configuração confere o papel de novo** e responde `403` para quem não é admin.
+  Esconder o botão é conveniência, a proteção está na rota.
+- **Fora do IS** (dev local, sem `IS_PLUGIN_INTERNAL_TOKEN`), a requisição sem headers conta como
+  ADMIN local, para a tela poder ser desenvolvida. Dentro do IS, requisição sem `X-IS-User-Id` é
+  recusada. `X-IS-Role: ANONYMOUS`, das rotas públicas, nunca é admin.
+
+```java
+// In AgentPanelController: true only for ADMIN or SCICROP, as stated by the IS proxy.
+@GetMapping
+public String index(Model model, HttpServletRequest request) {
+    populateModel(model);
+    model.addAttribute("isAdmin", isAdmin(request));
+    return "isp-index";
+}
+
+private boolean isAdmin(HttpServletRequest request) {
+    String role = request.getHeader("X-IS-Role");
+    if (role == null || role.isBlank()) {
+        return !runningInHost;   // local dev without the host counts as ADMIN
+    }
+    return "ADMIN".equals(role) || "SCICROP".equals(role);
+}
+```
+
+`runningInHost` é `true` quando `IS_PLUGIN_INTERNAL_TOKEN` está definido. O
+`CurrentUserResolver` do `is-plan-seq-agent-app` já faz isso e pode ser copiado.
+
+A tela é do próprio app, num modal ou painel do `isp-index.html`, e lê e grava pelo contrato de
+**[AGENT_APPS_CONFIG.md](AGENT_APPS_CONFIG.md)** (seção 9): `GET`/`PUT {base_path}/api/app-config`,
+com revisão e `409` quando outra pessoa salvou antes.
+
+### Suporte
+
+O IS serve o kit de suporte para cada app. O app o inclui no `<head>` com o botão flutuante
+desligado, porque o botão fica na barra:
 
 ```html
-<a href="/agents/apps" target="_parent">← Voltar ao IS</a>
+<script th:src="@{${pluginBasePath} + '/_is/support-kit.js'}" data-is-support-button="off" defer></script>
 ```
 
-**Posicionamento obrigatório:** no `<header>` principal do app, visível em todas as telas.
+```javascript
+// The support kit may be absent on an IS version without it: the button then does nothing.
+document.getElementById('btn-support').onclick = () => { if (window.ISSupport) window.ISSupport.open(); };
+```
+
+O `data-support-exclude` no botão tira ele do print do chamado.
+
+### Voltar ao IS
+
+O app roda num `<iframe>`, então o link usa `target="_parent"` (ou
+`window.parent.location.href = '/agents/apps'`). Nunca `window.top`.
 
 ---
 
@@ -909,11 +1058,12 @@ O script não tem `[[` nem `]]`, que o Thymeleaf interpretaria.
 
 ### 3. O botão
 
-Um botão de ícone no header, ao lado do link de volta ao IS, com a lua no modo escuro (vai para o
-claro) e o sol no modo claro (volta ao escuro). Os ícones são SVG inline, sem biblioteca externa.
+Um botão de ícone na barra de ações do header, logo antes de "Voltar ao IS" (ver **Barra de ações
+do header**), com a lua no modo escuro (vai para o claro) e o sol no modo claro (volta ao escuro).
+Os ícones são SVG inline, sem biblioteca externa.
 
 ```html
-<button type="button" class="theme-btn" id="btn-tema" title="Modo claro" aria-pressed="false">
+<button type="button" class="icon-btn theme-btn" id="btn-tema" title="Modo claro" aria-label="Modo claro" aria-pressed="false">
     <svg viewBox="0 0 24 24" class="theme-moon"><path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/></svg>
     <svg viewBox="0 0 24 24" class="theme-sun"><circle cx="12" cy="12" r="4"/>
         <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
@@ -938,6 +1088,7 @@ claro) e o sol no modo claro (volta ao escuro). Os ícones são SVG inline, sem 
         const show = () => {
             button.setAttribute('aria-pressed', light() ? 'true' : 'false');
             button.title = light() ? 'Modo escuro' : 'Modo claro';
+            button.setAttribute('aria-label', button.title);
         };
         button.addEventListener('click', () => {
             const toLight = !light();
@@ -981,7 +1132,9 @@ Teste as telas nos dois modos antes de empacotar, inclusive gráficos, mapas, mo
 - [ ] Assets JS/CSS em `classpath:/static/` (sem CDN externo se `local_assets_only: true`)
 - [ ] UI segue a identidade visual do IS — ver checklist de design em **[design.md](design.md)**
 - [ ] Se o app oferece modo claro: cores só em variáveis, escolha aplicada no `<head>`, botão no header e telas testadas nos dois modos (ver **Modo claro e escuro**)
-- [ ] Header do `isp-index.html` contém link de volta a `/agents/apps`
+- [ ] Barra de ações no canto direito do header, na ordem Configurações, Suporte, tema, Voltar ao IS, com ícones e dica (`title` + `aria-label`) (ver **Barra de ações do header**)
+- [ ] Botão de Configurações só desenhado para `ADMIN`/`SCICROP` (`th:if`), e as rotas de configuração respondem `403` para os outros papéis
 - [ ] Chamadas a `/api/extensions/internal/**` só no backend, com `IS_HOST_BASE_URL` e o token lido do ambiente
 - [ ] Se o app controla workflows: o `<plugin_id>-workflows.json` que ele precisa está documentado no README do app
+- [ ] Se o app tem configuração própria: `config/app-config.schema.json` e `config/app-config.json` no pacote e no `checksums.sha256`, sem nenhum valor de credencial (ver **[AGENT_APPS_CONFIG.md](AGENT_APPS_CONFIG.md)**)
 - [ ] Build limpo: `./scripts/build-all.sh` sem erros

@@ -10,7 +10,7 @@ Guia de design e UX para construir Agent Apps que **parecem nativos** do Infinit
 
 Um Agent App é renderizado **dentro de um iframe** na seção *Agents → Apps* do IS. Isso define tudo:
 
-1. **É um painel, não um site.** Não há barra de navegação própria, breadcrumbs, rodapé institucional, logo de empresa nem links "voltar". O IS já fornece a moldura. O app preenche o retângulo do iframe e nada mais.
+1. **É um painel, não um site.** Não há barra de navegação própria, breadcrumbs, rodapé institucional nem logo de empresa. O IS já fornece a moldura. O app preenche o retângulo do iframe e nada mais. A única exceção é a **barra de ações** no canto direito do header (Configurações, Suporte, tema, Voltar ao IS), igual em todo app (§4 e README, "Barra de ações do header").
 2. **Uma tela, autossuficiente.** O fluxo principal acontece em `isp-index.html`. Evite navegação entre páginas; prefira painéis, abas e modais dentro da mesma tela.
 3. **Tema escuro por padrão.** O IS é uma aplicação dark. Um app que abre claro destoa imediatamente e "quebra" a sensação de continuidade. O app pode oferecer um **modo claro opcional**, ligado por quem usa num botão do header; a receita está em "Modo claro e escuro" no [README.md](README.md).
 4. **Denso e técnico.** O público é operacional/analítico. Fontes pequenas (10–14px), muita informação por área, rótulos em caixa-alta discretos — não um marketing landing page.
@@ -99,14 +99,20 @@ Padrão recorrente: **sidebar de 320px** com os controles/entradas à esquerda, 
 <header>
     <h1>Nome do App</h1>
     <span class="badge">v1.0</span>
-    <div id="model-status">           <!-- empurrado para a direita com margin-left:auto -->
+    <span class="spacer"></span>      <!-- flex: 1, empurra o resto para a direita -->
+    <div id="model-status">
         <span class="dot ready"></span> Pronto
     </div>
+    <nav class="header-actions" aria-label="Ações">
+        <!-- Configurações (só admin), Suporte, tema, Voltar ao IS -->
+    </nav>
 </header>
 ```
 
 - Fundo `--surface`, `border-bottom: 1px solid --border`, padding `~14px 24px`.
-- À esquerda: título + badge opcional. À direita (via `margin-left:auto`): indicador de status com a "bolinha" (`.dot`/`.dot.ready` ganha glow verde).
+- À esquerda: título + badge opcional.
+- À direita: o indicador de status com a "bolinha" (`.dot`/`.dot.ready` ganha glow verde) e, logo depois, separada por uma divisória de `1px` em `--border`, a **barra de ações**.
+- **Barra de ações:** botões de ícone (30×30px, SVG 16px em `currentColor`, cor `--muted`, `:hover` em `--text` sobre `--surface2`), cada um com dica (`title` + `aria-label`), nesta ordem: **Configurações** (só `ADMIN`/`SCICROP`), **Suporte**, **tema** (se o app tem o modo claro) e **Voltar ao IS**, sempre o último. HTML, CSS e regras em "Barra de ações do header" no [README.md](README.md). Nenhuma ação do app entra ali: a ação principal fica no corpo, no botão verde.
 
 ---
 
@@ -191,7 +197,7 @@ Checklist de design (complementa o checklist técnico do README):
 - [ ] `:root` com os tokens de cor da §2 (copie do `recomendador-manejo`).
 - [ ] Tema **escuro** por padrão; nenhum fundo branco/claro de bloco no modo escuro. Modo claro só como opção do botão no header, seguindo "Modo claro e escuro" do README.
 - [ ] `body` em `grid` travado em `100vh` com `overflow: hidden`; scroll só nos painéis internos.
-- [ ] **Header** com `--surface` + `border-bottom`, título 16px/600 e indicador de status à direita.
+- [ ] **Header** com `--surface` + `border-bottom`, título 16px/600, indicador de status à direita e, depois dele, a **barra de ações** (Configurações só para admin, Suporte, tema, Voltar ao IS), em ícones com dica.
 - [ ] Layout **sidebar 320px + conteúdo `1fr`** (ajuste conforme o app, mas mantenha o idioma visual).
 - [ ] Títulos de seção em **caixa-alta 11px muted** com `letter-spacing`.
 - [ ] Ação primária em **botão verde** (`--accent`); secundárias em `--surface2`.
