@@ -98,10 +98,11 @@ sidebar 320px + conteúdo, `body` travado em `100vh` com scroll só nos painéis
 tela nova, copie a estrutura de `recomendador-manejo` (formulário → resultado) ou de `satellite-hub`
 (mapa/visualização). O design.md ainda o chama de `satellite-hub-viewer`.
 
-**Link de volta ao IS:** o README exige um link no `<header>` de `isp-index.html` para
-`/agents/apps` com `target="_parent"` (ou `window.parent.location`). Essa regra é mais nova que a §1
-do design.md ("sem links voltar") e prevalece sobre ela. Hoje só `recomendador-manejo` cumpre a regra.
-Ao mexer no header de outro app, adicione o link.
+**Barra de ações do header:** o README ("Barra de ações do header") exige no canto direito do
+`<header>` de `isp-index.html` quatro botões de ícone com dica, nesta ordem: Configurações (só
+`ADMIN`/`SCICROP`, decidido no servidor com `th:if` e `403` nas rotas), Suporte (`support-kit.js`),
+tema (se o app tem o modo claro) e Voltar ao IS (`/agents/apps` com `target="_parent"`). Nenhum app
+cumpre a barra inteira ainda. Ao mexer no header de um app, leve-o para a barra.
 
 ## Versionamento e release
 
