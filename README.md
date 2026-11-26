@@ -733,6 +733,26 @@ mesma instância, e subiu em 0,08 s contra 1,4 s.
 
 ---
 
+## Agent App em Python (FastAPI)
+
+Um app também pode ser **Python**: um app ASGI (FastAPI, Starlette...) que o IS roda com uvicorn
+(`infinitestack-back#1416`). O `.ispz` traz `app/main.py` e `app/requirements.txt`, sem jar nem
+templates Thymeleaf, e o manifest declara:
+
+```json
+{ "runtime": "python", "python": { "entrypoint": "main:app" } }
+```
+
+O IS cria um ambiente virtual por versão na instalação (`pip install`), monta o app no `base_path`
+e entrega a ele a identidade de quem chama num token assinado (`X-IS-Identity`), verificado pelo
+SDK `infinitestack_app`. O resto é igual a um app JVM: proxy, RBAC, retenção, log e Process
+Explorer. SSE e WebSocket passam pelo proxy. O exemplo `python-demo-app` ocupa ~51 MB de RSS.
+
+- Guia: **[HOW_TO_CREATE_PYTHON_AGENT_APPS.md](HOW_TO_CREATE_PYTHON_AGENT_APPS.md)**.
+- Exemplo testado: **[python-demo-app/](python-demo-app/)**.
+
+---
+
 ## Instalação e gerenciamento via CLI do IS
 
 O IS expõe comandos no terminal CLI (seção **Leverage → Chatbot** ou terminal admin).

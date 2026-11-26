@@ -1,0 +1,16 @@
+{
+  "plugin_id": "python-demo-app",
+  "name": "Python Demo App",
+  "version": "0.1.0",
+  "description": "FastAPI example: who is signed in, server-sent events and a WebSocket echo.",
+  "base_path": "/api/plugins/python-demo-app",
+  "runtime": "python",
+  "python": { "entrypoint": "main:app" },
+  "supported_destination_databases": ["postgres", "oracle"],
+  "requires_host_authentication": true,
+  "requires_host_authorization": true,
+  "requires_host_datasource": true,
+  "allows_own_user_store": false,
+  "allows_own_datasource": false,
+  "resources": { "max_heap_mb": 256 }
+}
